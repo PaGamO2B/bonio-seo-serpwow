@@ -1,0 +1,48 @@
+name: SERP Wow Daily Rankings
+
+on:
+  schedule:
+    # 09:30 Asia/Taipei == 01:30 UTC
+    - cron: '30 1 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-serpwow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run SERP Wow fetcher
+        env:
+          SERPWOW_API_KEY: ${{ secrets.SERPWOW_API_KEY }}
+          KEYWORDS_EXCEL_PATH: 活頁簿1.xlsx
+          TARGET_DOMAIN: bonio.co
+          OUTPUT_DIR: output
+        run: |
+          python serpwow_daily_rankings.py
+
+      - name: Commit & push results
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add output/
+            git commit -m "Update SERP results [skip ci]"
+            git push
+          else
+            echo "No changes to commit"
+          fi
